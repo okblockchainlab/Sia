@@ -14,3 +14,6 @@ doc/whitepaper.pdf
 # IntelliJ IDEA
 .idea
 sia.iml
+
+libsia.dylib
+libsia.so
