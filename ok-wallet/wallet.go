@@ -3,6 +3,7 @@ package main
 import (
   "errors"
   "encoding/hex"
+  "encoding/json"
 	"gitlab.com/NebulousLabs/Sia/crypto"
 	"gitlab.com/NebulousLabs/Sia/types"
 	"gitlab.com/NebulousLabs/Sia/node/api"
@@ -52,20 +53,88 @@ func startTransaction() (modules.TransactionBuilder, error) {
 		parents:     pCopy,
 		transaction: tCopy,
 
-		wallet: w,
+		wallet: nil,
 	}
 }
 
 //reference: Wallet.SendSiacoins
 //fee can get by /tpool/fee, max for general. and I will mul 750.
-func createRawTransaction(amount_s string, dest_s string, fee string) (string, error) {
+/*siacoinoutputs:
+[
+  {
+    transactions: {
+    },
+    use_outputs: [1, 2, 3]
+  },
+]
+*/
+
+func createRawTransaction(amount_s string, dest_s string, fee_s string, from_unlock_cond_s string, to_unlock_cond_s string, refund_unlock_cond_s string, siacoinoutputs string) (string, error) {
   amount, ok := api.scanAmount(amount_s)
   if !ok {
     return "", errors.New("could not read amount from '" + amount_s + "'")
   }
-  dest, err := scanAddress(dest_s)
+  dest, err := api.scanAddress(dest_s)
   if err != nil {
     return "", errors.New("could not read address from '" + dest_s + "'")
+  }
+  fee, err := api.scanAmount(fee_s)
+  if err != nil {
+    return "", errors.New("could not read fee from '" + fee_s + "'")
+  }
+
+  var scouts []SiacoinOutput
+  err = json.Unmarshal(siacoinoutputs, &scouts)
+  if err != nil {
+    return "", err
+  }
+
+  var from_ucs types.UnlockConditions
+  err = json.Unmarshal(from_unlock_cond_s, &from_ucs)
+  if err != nil {
+    return "", err
+  }
+  var to_ucs types.UnlockConditions
+  err = json.Unmarshal(to_unlock_cond_s, &to_ucs)
+  if err != nil {
+    return "", err
+  }
+
+  //check value
+  var fund types.Currency
+  for _, sco := range scouts {
+      fund.Add(sco.Value)
+  }
+  if fund.Cmp(amount.Add(fee)) < 0 {
+      return modules.ErrLowBalance
+  }
+
+	parentTxn := types.Transaction{}
+  for _, sco := range scouts {
+		sci := types.SiacoinInput{
+			ParentID:         t.SiacoinOutputID(xxxxxxi),
+			UnlockConditions: from_ucs,
+		}
+		parentTxn.SiacoinInputs = append(parentTxn.SiacoinInputs, sci)
+  }
+
+	exactOutput := types.SiacoinOutput{
+		Value:      amount,
+		UnlockHash: to_ucs.UnlockHash(),
+	}
+	parentTxn.SiacoinOutputs = append(parentTxn.SiacoinOutputs, exactOutput)
+
+  if !amount.Equals(fund) {
+    var refund_ucs types.UnlockConditions
+    err = json.Unmarshal(refun_unlock_cond_s, &refund_ucs)
+    if err != nil {
+      return "", err
+    }
+		refundOutput := types.SiacoinOutput{
+			Value:      fund.Sub(amount),
+			UnlockHash: refund_ucs.UnlockHash(),
+		}
+		parentTxn.SiacoinOutputs = append(parentTxn.SiacoinOutputs, refundOutput)
   }
 
 	//_, tpoolFee := w.tpool.FeeEstimation()
