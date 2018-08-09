@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"gitlab.com/NebulousLabs/Sia/encoding"
+	"gitlab.com/NebulousLabs/Sia/modules"
 	"gitlab.com/NebulousLabs/Sia/types"
 )
 
@@ -20,40 +22,49 @@ func startTransaction() (*okTransactionBuilder, error) {
 	var pCopy []types.Transaction
 	err := encoding.Unmarshal(pBytes, &pCopy)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	tBytes := encoding.Marshal(t)
 	var tCopy types.Transaction
 	err = encoding.Unmarshal(tBytes, &tCopy)
 	if err != nil {
-		panic(err)
+		return nil, err
 	}
 	return &okTransactionBuilder{
 		Parents:     pCopy,
 		Transaction: tCopy,
-	}
+	}, nil
 }
 
 //refund_ucs may nil
-func (tb *okTransactionBuilder) FundSiacoins(amount types.Currency, fee types.Currency, spending []SpendingTransaction, from_ucs UnlockConditions, refund_ucs UnlockConditions) error {
+func (tb *okTransactionBuilder) FundSiacoins(amount types.Currency, spending []SpendingTransaction, from_ucs types.UnlockConditions, refund_ucs *types.UnlockConditions) error {
 	//check value
 	var fund types.Currency
 	for _, sp := range spending {
-		for _, si := range sp.SpendingOutputs {
-			fund.Add(sp.Tx.SiacoinOutputs[si].Value)
+		for si := range sp.SpendingOutputs {
+			fund = fund.Add(sp.Tx.SiacoinOutputs[si].Value)
 		}
 	}
-	if fund.Cmp(amount.Add(fee)) < 0 {
+	if fund.Cmp(amount) < 0 {
 		return modules.ErrLowBalance
 	}
 
-	parentTxn := types.Transaction{}
-	parentUnlockConditions = from_ucs
+	parentTxn := types.Transaction{
+		FileContracts:         []types.FileContract{},
+		FileContractRevisions: []types.FileContractRevision{},
+		StorageProofs:         []types.StorageProof{},
+		SiafundInputs:         []types.SiafundInput{},
+		SiafundOutputs:        []types.SiafundOutput{},
+		MinerFees:             []types.Currency{},
+		ArbitraryData:         [][]byte{},
+		TransactionSignatures: []types.TransactionSignature{},
+	}
+	parentUnlockConditions := from_ucs
 
 	for _, sp := range spending {
 		for _, si := range sp.SpendingOutputs {
 			sci := types.SiacoinInput{
-				ParentID:         sp.Tx.SiacoinOutputID(si),
+				ParentID:         sp.Tx.SiacoinOutputID(uint64(si)),
 				UnlockConditions: from_ucs,
 			}
 			parentTxn.SiacoinInputs = append(parentTxn.SiacoinInputs, sci)
@@ -91,6 +102,7 @@ func (tb *okTransactionBuilder) FundSiacoins(amount types.Currency, fee types.Cu
 	tb.Parents = append(tb.Parents, parentTxn)
 	tb.SiacoinInputs = append(tb.SiacoinInputs, len(tb.Transaction.SiacoinInputs))
 	tb.Transaction.SiacoinInputs = append(tb.Transaction.SiacoinInputs, newInput)
+	return nil
 }
 
 //reference: wallet.AddMinerFee
@@ -100,7 +112,7 @@ func (tb *okTransactionBuilder) AddMinerFee(fee types.Currency) uint64 {
 }
 
 //reference: wallet.AddSiacoinOutput
-func (tb *transactionBuilder) AddSiacoinOutput(output types.SiacoinOutput) uint64 {
+func (tb *okTransactionBuilder) AddSiacoinOutput(output types.SiacoinOutput) uint64 {
 	tb.Transaction.SiacoinOutputs = append(tb.Transaction.SiacoinOutputs, output)
 	return uint64(len(tb.Transaction.SiacoinOutputs) - 1)
 }

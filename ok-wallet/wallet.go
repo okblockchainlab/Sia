@@ -9,15 +9,20 @@ import (
 	"gitlab.com/NebulousLabs/Sia/types"
 )
 
-func getAddressByPrivateKey(ssk string) (string, error) {
+//return address, UnlockConditions, err
+func getAddressByPrivateKey(ssk string) (address, ucs_s string, err error) {
+	address = ""
+	ucs_s = ""
+
 	var sk crypto.SecretKey
 	b, err := hex.DecodeString(ssk)
 	if err != nil {
-		return "", err
+		return
 	}
 
 	if len(b) != len(sk) {
-		return "", errors.New("invalid securet key!")
+		err = errors.New("invalid securet key!")
+		return
 	}
 
 	copy(sk[:], b)
@@ -29,45 +34,52 @@ func getAddressByPrivateKey(ssk string) (string, error) {
 		SignaturesRequired: 1,
 	}
 
-	return ucs.UnlockHash().String(), nil
+	ucs_b, err := json.Marshal(ucs)
+	if err != nil {
+		return
+	}
+
+	ucs_s = string(ucs_b)
+	address = ucs.UnlockHash().String()
+	err = nil
+	return
 }
 
 //reference: Wallet.SendSiacoins
 //fee can get by /tpool/fee, max for general. and mul 750.
 func createRawTransaction(amount_s string, fee_s string, from_ucs_s string, to_ucs_s string, refund_ucs_s string, spendingTxs_s string) (string, error) {
-	amount, ok := api.scanAmount(amount_s)
+	amount, ok := api.ScanAmount(amount_s)
 	if !ok {
 		return "", errors.New("could not read amount from '" + amount_s + "'")
 	}
-	fee, err := api.scanAmount(fee_s)
-	if err != nil {
+	fee, ok := api.ScanAmount(fee_s)
+	if !ok {
 		return "", errors.New("could not read fee from '" + fee_s + "'")
 	}
 
 	var spendingTx []SpendingTransaction
-	err = json.Unmarshal(spendingTxs_s, &spendingTx)
+	err := json.Unmarshal([]byte(spendingTxs_s), &spendingTx)
 	if err != nil {
 		return "", err
 	}
 
 	var from_ucs types.UnlockConditions
-	err = json.Unmarshal(from_ucs_s, &from_ucs)
+	err = json.Unmarshal([]byte(from_ucs_s), &from_ucs)
 	if err != nil {
 		return "", err
 	}
 	var to_ucs types.UnlockConditions
-	err = json.Unmarshal(to_ucs_s, &to_ucs)
+	err = json.Unmarshal([]byte(to_ucs_s), &to_ucs)
 	if err != nil {
 		return "", err
 	}
-	var refund_ucs types.UnlockConditions
+	var refund_ucs *types.UnlockConditions = nil
 	if len(refund_ucs_s) != 0 {
-		err = json.Unmarshal(refund_ucs_s, &refund_ucs)
+		refund_ucs = &types.UnlockConditions{}
+		err = json.Unmarshal([]byte(refund_ucs_s), &refund_ucs)
 		if err != nil {
 			return "", err
 		}
-	} else {
-		refund_ucs = nil
 	}
 
 	output := types.SiacoinOutput{
@@ -77,10 +89,13 @@ func createRawTransaction(amount_s string, fee_s string, from_ucs_s string, to_u
 
 	txnBuilder, err := startTransaction()
 	if err != nil {
-		return nil, err
+		return "", err
 	}
 
-	txnBuilder.FundSiacoins()
+	err = txnBuilder.FundSiacoins(amount.Add(fee), spendingTx, from_ucs, refund_ucs)
+	if err != nil {
+		return "", err
+	}
 
 	txnBuilder.AddMinerFee(fee)
 	txnBuilder.AddSiacoinOutput(output)

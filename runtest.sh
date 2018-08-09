@@ -1,2 +1,2 @@
 
-go test ./ok-wallet
+go test -v ./ok-wallet

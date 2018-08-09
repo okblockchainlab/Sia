@@ -8,6 +8,10 @@ import (
 	"gitlab.com/NebulousLabs/Sia/types"
 )
 
+func ScanAmount(amount string) (types.Currency, bool) {
+	return scanAmount(amount)
+}
+
 // scanAmount scans a types.Currency from a string.
 func scanAmount(amount string) (types.Currency, bool) {
 	// use SetString manually to ensure that amount does not contain
