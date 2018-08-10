@@ -121,6 +121,8 @@ func (api *API) buildHTTPRoutes(requiredUserAgent string, requiredPassword strin
 		router.POST("/wallet/seed", RequirePassword(api.walletSeedHandler, requiredPassword))
 		router.GET("/wallet/seeds", RequirePassword(api.walletSeedsHandler, requiredPassword))
 		router.POST("/wallet/siacoins", RequirePassword(api.walletSiacoinsHandler, requiredPassword))
+		router.POST("/wallet/committransactions", RequirePassword(api.walletCommitTransactionHandler, requiredPassword))
+		router.POST("/wallet/checkoutput", RequirePassword(api.walletCheckOutputHandler, requiredPassword))
 		router.POST("/wallet/siafunds", RequirePassword(api.walletSiafundsHandler, requiredPassword))
 		router.POST("/wallet/siagkey", RequirePassword(api.walletSiagkeyHandler, requiredPassword))
 		router.POST("/wallet/sweep/seed", RequirePassword(api.walletSweepSeedHandler, requiredPassword))

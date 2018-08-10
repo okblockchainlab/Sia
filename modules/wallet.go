@@ -416,6 +416,8 @@ type (
 		// DustThreshold returns the quantity per byte below which a Currency is
 		// considered to be Dust.
 		DustThreshold() (types.Currency, error)
+
+		CommitTransactions(txs []types.Transaction) error
 	}
 
 	// WalletSettings control the behavior of the Wallet.

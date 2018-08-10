@@ -165,6 +165,92 @@ func (w *Wallet) SendSiacoins(amount types.Currency, dest types.UnlockHash) (txn
 	return txnSet, nil
 }
 
+func (w *Wallet) CommitTransactions(txs []types.Transaction) error {
+	if err := w.tg.Add(); err != nil {
+		return modules.ErrWalletShutdown
+	}
+	defer w.tg.Done()
+
+	w.mu.Lock()
+	if !w.unlocked {
+		w.log.Println("Attempt to send coins has failed - wallet is locked")
+		return modules.ErrLockedWallet
+	}
+	defer w.mu.Unlock()
+
+	consensusHeight, err := dbGetConsensusHeight(w.dbTx)
+	if err != nil {
+		return err
+	}
+
+	defer func() {
+		if err == nil {
+			return
+		}
+
+		for _, tx := range txs {
+			for _, sci := range tx.SiacoinInputs {
+				dbDeleteSpentOutput(w.dbTx, types.OutputID(sci.ParentID))
+			}
+		}
+	}()
+
+	for _, tx := range txs {
+		for _, sci := range tx.SiacoinInputs {
+			err = dbPutSpentOutput(w.dbTx, types.OutputID(sci.ParentID), consensusHeight)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
+	err = w.tpool.AcceptTransactionSet(txs)
+	if err != nil {
+		w.log.Println("Attempt to send coins has failed - transaction pool rejected transaction:", err)
+		return build.ExtendErr("unable to get transaction accepted", err)
+	}
+	w.log.Println("Submitted a siacoin transfer transaction set for value", amount.HumanString(), "with fees", tpoolFee.HumanString(), "IDs:")
+	for _, tx := range txs {
+		w.log.Println("\t", tx.ID())
+	}
+
+	return nil
+}
+
+func (w *Wallet) CheckOutput(tx types.Transaction) (spendable, unspendable []int, err error) {
+	if err := w.tg.Add(); err != nil {
+		return modules.ErrWalletShutdown
+	}
+	defer w.tg.Done()
+
+	w.mu.Lock()
+	if !w.unlocked {
+		w.log.Println("Attempt to send coins has failed - wallet is locked")
+		return modules.ErrLockedWallet
+	}
+	defer w.mu.Unlock()
+	
+	dustThreshold, err := w.DustThreshold()
+	if err != nil {
+		return
+	}
+	consensusHeight, err := dbGetConsensusHeight(w.dbTx)
+	if err != nil {
+		return
+	}
+
+	for i, sco := range tx.SiacoinOutputs {
+		if err = w.checkOutput(w.dbTx, consensusHeight, tx.SiacoinOutputID(i), sco, dustThreshold); err != nil {
+			unspendable = append(unspendable, i)
+		} else {
+			spendable = append(spendable)
+		}
+	}
+
+	err = nil
+	return
+}
+
 // SendSiacoinsMulti creates a transaction that includes the specified
 // outputs. The transaction is submitted to the transaction pool and is also
 // returned.
