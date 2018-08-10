@@ -1,12 +1,14 @@
 package main
 
 import (
-	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"gitlab.com/NebulousLabs/Sia/crypto"
 	"gitlab.com/NebulousLabs/Sia/node/api"
 	"gitlab.com/NebulousLabs/Sia/types"
+)
+
+var (
+	errBuilderAlreadySigned = errors.New("sign has already been called on this transaction builder, multiple calls can cause issues")
 )
 
 //return address, UnlockConditions, err
@@ -14,18 +16,10 @@ func getAddressByPrivateKey(ssk string) (address, ucs_s string, err error) {
 	address = ""
 	ucs_s = ""
 
-	var sk crypto.SecretKey
-	b, err := hex.DecodeString(ssk)
+	sk, err := hexString2SecretKey(ssk)
 	if err != nil {
 		return
 	}
-
-	if len(b) != len(sk) {
-		err = errors.New("invalid securet key!")
-		return
-	}
-
-	copy(sk[:], b)
 
 	pk := sk.PublicKey()
 
@@ -106,5 +100,33 @@ func createRawTransaction(amount_s string, fee_s string, from_ucs_s string, to_u
 	}
 	return string(result), nil
 }
+
+//reference: transactionBuilder.Sign
+func singRawTransaction(txBuilder_s string, secKeys_s string) (string, error) {
+	var txBuilder okTransactionBuilder
+	err := json.Unmarshal([]byte(txBuilder_s), &txBuilder)
+	if err != nil {
+		return "", err
+	}
+
+	secKeys, err := string2SecretKeys(secKeys_s)
+	if err != nil {
+		return "", err
+	}
+
+	txSet, err := txBuilder.Sign(secKeys)
+	if err != nil {
+		return "", err
+	}
+
+	txSet_b, err := json.Marshal(txSet)
+	if err != nil {
+		return "", err
+	}
+
+	return string(txSet_b), nil
+}
+
+//send: tpool.AcceptTransactionSet
 
 func main() {}
