@@ -4,9 +4,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"math/big"
 	"gitlab.com/NebulousLabs/Sia/crypto"
 	"gitlab.com/NebulousLabs/Sia/types"
+	"math/big"
 )
 
 func hexString2SecretKey(s string) (*crypto.SecretKey, error) {

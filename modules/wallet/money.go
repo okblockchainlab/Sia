@@ -176,7 +176,7 @@ func (w *Wallet) CommitTransactions(txs []types.Transaction) error {
 		w.log.Println("Attempt to send coins has failed - wallet is locked")
 		return modules.ErrLockedWallet
 	}
-	defer func () {
+	defer func() {
 		if !w.unlocked {
 			w.mu.Unlock()
 		}

@@ -418,7 +418,7 @@ type (
 		DustThreshold() (types.Currency, error)
 
 		CommitTransactions(txs []types.Transaction) error
-		
+
 		CheckOutput(tx types.Transaction) (spendable, unspendable []int, err error)
 	}
 

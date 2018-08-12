@@ -1,8 +1,8 @@
 package api
 
 import (
-	"encoding/json"
 	"encoding/base64"
+	"encoding/json"
 	"fmt"
 	"math"
 	"net/http"
@@ -61,7 +61,7 @@ type (
 	}
 
 	WalletCheckOutputPOST struct {
-		Spendable []int `json:"spendable"`
+		Spendable   []int `json:"spendable"`
 		Unspendable []int `json:"unspendable"`
 	}
 
@@ -469,7 +469,7 @@ func (api *API) walletSiacoinsHandler(w http.ResponseWriter, req *http.Request, 
 	})
 }
 
-func (api *API) walletCommitTransactionHandler(w http.ResponseWriter, req * http.Request, _ httprouter.Params) {
+func (api *API) walletCommitTransactionHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	var txns []types.Transaction
 	err := json.Unmarshal([]byte(req.FormValue("transactions")), &txns)
 	if err != nil {
@@ -512,7 +512,7 @@ func (api *API) walletCheckOutputHandler(w http.ResponseWriter, req *http.Reques
 	}
 
 	WriteJSON(w, WalletCheckOutputPOST{
-		Spendable: spendable,
+		Spendable:   spendable,
 		Unspendable: unspendable,
 	})
 }

@@ -2,8 +2,8 @@ package api
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"encoding/hex"
+	"encoding/json"
 	"fmt"
 	"net/url"
 	"os"
@@ -1832,7 +1832,6 @@ func prepareForTestCommitTransactions(t *testing.T) (st *serverTester, st2 *serv
 	}
 	sendAmount := types.SiacoinPrecision.Mul64(40000)
 
-
 	// Mine a block to confirm the send.
 	_, err = st.miner.AddBlock()
 	if err != nil {
@@ -1872,7 +1871,6 @@ func TestWalletCommitTransactions(t *testing.T) {
 	defer st2.server.Close()
 	defer st3.server.Close()
 
-
 	//get fee amount
 	var tpfg TpoolFeeGET
 	err = st2.getAPI("/tpool/fee", &tpfg)
@@ -1898,15 +1896,15 @@ func TestWalletCommitTransactions(t *testing.T) {
 		var wcop WalletCheckOutputPOST
 		txByte, _ := json.Marshal(ProcessedTx.Transaction)
 		txBase64 := base64.StdEncoding.EncodeToString(txByte)
-		err = st2.getAPI("/wallet/checkoutput?transaction=" + txBase64, &wcop)
+		err = st2.getAPI("/wallet/checkoutput?transaction="+txBase64, &wcop)
 		if err != nil {
 			t.Fatal(err)
 		}
 
 		spTx := okwallet.SpendingTransaction{
-				Tx: ProcessedTx.Transaction,
-				SpendingOutputs: []int{},
-			}
+			Tx:              ProcessedTx.Transaction,
+			SpendingOutputs: []int{},
+		}
 
 		for _, oi := range wcop.Spendable {
 			if accumAccount.Cmp(totalAmount) >= 0 {
@@ -1951,7 +1949,7 @@ func TestWalletCommitTransactions(t *testing.T) {
 	//sign raw transactions
 	seed, _, err := st2.wallet.PrimarySeed()
 	sk, _ := crypto.GenerateKeyPairDeterministic(crypto.HashAll(seed, 1))
-	SignedTxStr, err := okwallet.SignRawTransaction(okTxBuilderStr, "[" + "\"" + hex.EncodeToString(sk[:]) + "\"" + "]")
+	SignedTxStr, err := okwallet.SignRawTransaction(okTxBuilderStr, "["+"\""+hex.EncodeToString(sk[:])+"\""+"]")
 	if err != nil {
 		t.Fatal(err)
 	}
