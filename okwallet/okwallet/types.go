@@ -1,4 +1,4 @@
-package main
+package okwallet
 
 import (
 	"gitlab.com/NebulousLabs/Sia/types"

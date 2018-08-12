@@ -14,4 +14,4 @@ pkgs="./build ./cmd/siac ./cmd/siad ./compatibility ./crypto ./encoding ./module
 go build -tags="netgo" -a -ldflags="-s -w ${ldflags}" ${pkgs}
 
 
-go build -o libsia.dylib -buildmode=c-shared -tags="netgo" -a -ldflags="-s -w ${ldflags}" ./ok-wallet
+go build -o libsia.dylib -buildmode=c-shared -tags="netgo" -a -ldflags="-s -w ${ldflags}" ./okwallet/libsia

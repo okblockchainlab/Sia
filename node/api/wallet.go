@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"encoding/base64"
 	"fmt"
 	"math"
 	"net/http"
@@ -57,6 +58,11 @@ type (
 	// /wallet/siacoins.
 	WalletSiacoinsPOST struct {
 		TransactionIDs []types.TransactionID `json:"transactionids"`
+	}
+
+	WalletCheckOutputPOST struct {
+		Spendable []int `json:"spendable"`
+		Unspendable []int `json:"unspendable"`
 	}
 
 	// WalletSiafundsPOST contains the transaction sent in the POST call to
@@ -460,6 +466,54 @@ func (api *API) walletSiacoinsHandler(w http.ResponseWriter, req *http.Request, 
 	}
 	WriteJSON(w, WalletSiacoinsPOST{
 		TransactionIDs: txids,
+	})
+}
+
+func (api *API) walletCommitTransactionHandler(w http.ResponseWriter, req * http.Request, _ httprouter.Params) {
+	var txns []types.Transaction
+	err := json.Unmarshal([]byte(req.FormValue("transactions")), &txns)
+	if err != nil {
+		WriteError(w, Error{"error when unmarshal transactions: " + err.Error()}, http.StatusInternalServerError)
+		return
+	}
+
+	err = api.wallet.CommitTransactions(txns)
+	if err != nil {
+		WriteError(w, Error{"could not commit transactions: " + err.Error()}, http.StatusInternalServerError)
+		return
+	}
+
+	var txids []types.TransactionID
+	for _, txn := range txns {
+		txids = append(txids, txn.ID())
+	}
+	WriteJSON(w, WalletSiacoinsPOST{
+		TransactionIDs: txids,
+	})
+}
+
+func (api *API) walletCheckOutputHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+	var txn types.Transaction
+	txByte, err := base64.StdEncoding.DecodeString(req.FormValue("transaction"))
+	if err != nil {
+		WriteError(w, Error{"error when decoding basr64: " + err.Error()}, http.StatusInternalServerError)
+		return
+	}
+	err = json.Unmarshal(txByte, &txn)
+	if err != nil {
+		WriteError(w, Error{"error when unmarshal transaction: " + err.Error()}, http.StatusInternalServerError)
+		return
+	}
+
+	spendable, unspendable, err := api.wallet.CheckOutput(txn)
+	if err != nil {
+		WriteError(w, Error{"error when checking outputs: " + err.Error()}, http.StatusInternalServerError)
+		return
+	}
+
+	WriteJSON(w, WalletCheckOutputPOST{
+		Spendable: spendable,
+		Unspendable: unspendable,
 	})
 }
 

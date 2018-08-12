@@ -1,4 +1,4 @@
-package main
+package okwallet
 
 import (
 	"bytes"
@@ -53,16 +53,7 @@ func (tb *okTransactionBuilder) FundSiacoins(amount types.Currency, spending []S
 		return modules.ErrLowBalance
 	}
 
-	parentTxn := types.Transaction{
-		FileContracts:         []types.FileContract{},
-		FileContractRevisions: []types.FileContractRevision{},
-		StorageProofs:         []types.StorageProof{},
-		SiafundInputs:         []types.SiafundInput{},
-		SiafundOutputs:        []types.SiafundOutput{},
-		MinerFees:             []types.Currency{},
-		ArbitraryData:         [][]byte{},
-		TransactionSignatures: []types.TransactionSignature{},
-	}
+	parentTxn := types.Transaction{}
 	parentUnlockConditions := from_ucs
 
 	for _, sp := range spending {
@@ -91,11 +82,6 @@ func (tb *okTransactionBuilder) FundSiacoins(amount types.Currency, spending []S
 		}
 		parentTxn.SiacoinOutputs = append(parentTxn.SiacoinOutputs, refundOutput)
 	}
-
-	//XXX: Sign all of the inputs to the parent transaction.
-	//for _, sci := range parentTxn.SiacoinInputs {
-	//addSignatures(&parentTxn, types.FullCoveredFields, sci.UnlockConditions, crypto.Hash(sci.ParentID), tb.wallet.keys[sci.UnlockConditions.UnlockHash()])
-	//}
 
 	// Add the exact output.
 	newInput := types.SiacoinInput{

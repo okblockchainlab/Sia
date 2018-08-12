@@ -1,13 +1,17 @@
 package api
 
 import (
+	"encoding/base64"
 	"encoding/json"
+	"encoding/hex"
 	"fmt"
 	"net/url"
 	"os"
 	"path/filepath"
 	"testing"
 	"time"
+
+	"gitlab.com/NebulousLabs/Sia/okwallet/okwallet"
 
 	"gitlab.com/NebulousLabs/Sia/build"
 	"gitlab.com/NebulousLabs/Sia/crypto"
@@ -1760,5 +1764,227 @@ func TestWalletTransactionsGetAddr(t *testing.T) {
 	}
 	if len(wtga.UnconfirmedTransactions) != 0 || len(wtga.ConfirmedTransactions) != 1 {
 		t.Errorf("There should be exactly 0 unconfirmed and 1 confirmed related txns")
+	}
+}
+
+func prepareForTestCommitTransactions(t *testing.T) (st *serverTester, st2 *serverTester, st3 *serverTester, wallets []*serverTester, st2Uc types.UnlockConditions, err error) {
+	st = nil
+	st2 = nil
+	st3 = nil
+	defer func() {
+		if err == nil {
+			return
+		}
+
+		if st3 != nil {
+			st3.server.Close()
+		}
+		if st2 != nil {
+			st2.server.Close()
+		}
+		if st != nil {
+			st.server.panicClose()
+		}
+	}()
+
+	st, err = createServerTester(t.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+	st2, err = blankServerTester(t.Name() + "-wallet2")
+	if err != nil {
+		t.Fatal(err)
+	}
+	st3, err = blankServerTester(t.Name() + "-wallet3")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Mine two more blocks with 'st' to get extra outputs to spend.
+	for i := 0; i < 2; i++ {
+		_, err := st.miner.AddBlock()
+		if err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	// Connect all the wallets together.
+	wallets = []*serverTester{st, st2, st3}
+	err = fullyConnectNodes(wallets)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	st2Uc, err = st2.wallet.NextAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
+	st2Addr := st2Uc.UnlockHash()
+
+	// Send 10KS in a single-send to st2.
+	_, err = st.wallet.SendSiacoins(types.SiacoinPrecision.Mul64(20000), st2Addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	_, err = st.wallet.SendSiacoins(types.SiacoinPrecision.Mul64(20000), st2Addr)
+	if err != nil {
+		t.Fatal(err)
+	}
+	sendAmount := types.SiacoinPrecision.Mul64(40000)
+
+
+	// Mine a block to confirm the send.
+	_, err = st.miner.AddBlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Wait for the block to propagate.
+	_, err = synchronizationCheck(wallets)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	// Check that st2 have 10KS.
+	var wg WalletGET
+	err = st2.getAPI("/wallet", &wg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !wg.ConfirmedSiacoinBalance.Equals(sendAmount) {
+		t.Errorf("wallet st2 should have %v coins, has %v", sendAmount, wg.ConfirmedSiacoinBalance)
+		err = errors.New("confirmed siacoin balance is not equal with send amount")
+	}
+
+	return
+}
+
+func TestWalletCommitTransactions(t *testing.T) {
+	if testing.Short() || !build.VLONG {
+		t.SkipNow()
+	}
+	t.Parallel()
+
+	st, st2, st3, wallets, st2Uc, err := prepareForTestCommitTransactions(t)
+	if err != nil {
+		return
+	}
+	defer st.server.panicClose()
+	defer st2.server.Close()
+	defer st3.server.Close()
+
+
+	//get fee amount
+	var tpfg TpoolFeeGET
+	err = st2.getAPI("/tpool/fee", &tpfg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	fee := tpfg.Maximum.Mul64(750)
+
+	//get all transactions of st2
+	var wtga WalletTransactionsGETaddr
+	wtgaQuery := fmt.Sprintf("/wallet/transactions/%s", st2Uc.UnlockHash())
+	err = st2.getAPI(wtgaQuery, &wtga)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//checkoutput: get outputs can spend and total value greater then types.SiacoinPrecision.Mul64(30000)
+	spendingAmount := types.SiacoinPrecision.Mul64(30000)
+	totalAmount := spendingAmount.Add(fee)
+	accumAccount := types.NewCurrency64(0)
+	var spendingTx []okwallet.SpendingTransaction
+	for _, ProcessedTx := range wtga.ConfirmedTransactions {
+		var wcop WalletCheckOutputPOST
+		txByte, _ := json.Marshal(ProcessedTx.Transaction)
+		txBase64 := base64.StdEncoding.EncodeToString(txByte)
+		err = st2.getAPI("/wallet/checkoutput?transaction=" + txBase64, &wcop)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		spTx := okwallet.SpendingTransaction{
+				Tx: ProcessedTx.Transaction,
+				SpendingOutputs: []int{},
+			}
+
+		for _, oi := range wcop.Spendable {
+			if accumAccount.Cmp(totalAmount) >= 0 {
+				break
+			}
+
+			accumAccount.Add(ProcessedTx.Transaction.SiacoinOutputs[oi].Value)
+			spTx.SpendingOutputs = append(spTx.SpendingOutputs, oi)
+		}
+
+		if len(spTx.SpendingOutputs) > 0 {
+			spendingTx = append(spendingTx, spTx)
+		}
+
+		if accumAccount.Cmp(totalAmount) >= 0 {
+			break
+		}
+	}
+
+	//make raw transactions
+	fromUc, err := json.Marshal(st2Uc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	st3Uc, err := st3.wallet.NextAddress()
+	if err != nil {
+		t.Fatal(err)
+	}
+	toUc, err := json.Marshal(st3Uc)
+	if err != nil {
+		t.Fatal(err)
+	}
+	spendingTxByte, err := json.Marshal(spendingTx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	okTxBuilderStr, err := okwallet.CreateRawTransaction(spendingAmount.String(), fee.String(), string(fromUc), string(toUc), string(fromUc), string(spendingTxByte))
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//sign raw transactions
+	seed, _, err := st2.wallet.PrimarySeed()
+	sk, _ := crypto.GenerateKeyPairDeterministic(crypto.HashAll(seed, 1))
+	SignedTxStr, err := okwallet.SignRawTransaction(okTxBuilderStr, "[" + "\"" + hex.EncodeToString(sk[:]) + "\"" + "]")
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//commit tx
+	var wscp WalletSiacoinsPOST
+	txValue := url.Values{}
+	txValue.Set("transactions", SignedTxStr)
+	err = st2.postAPI("/wallet/committransactions", txValue, &wscp)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//NOTE: if test failed, wait for some seconds for block synchronized
+	time.Sleep(time.Millisecond * 5000)
+
+	// Mine a block to confirm the send.
+	_, err = st.miner.AddBlock()
+	if err != nil {
+		t.Fatal(err)
+	}
+	// Wait for the block to propagate.
+	_, err = synchronizationCheck(wallets)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var wg WalletGET
+	err = st3.getAPI("/wallet", &wg)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !wg.ConfirmedSiacoinBalance.Equals(spendingAmount) {
+		t.Errorf("wallet st3 should have %v coins, has %v", spendingAmount, wg.ConfirmedSiacoinBalance)
 	}
 }

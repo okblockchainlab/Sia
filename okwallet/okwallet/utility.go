@@ -1,10 +1,12 @@
-package main
+package okwallet
 
 import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"math/big"
 	"gitlab.com/NebulousLabs/Sia/crypto"
+	"gitlab.com/NebulousLabs/Sia/types"
 )
 
 func hexString2SecretKey(s string) (*crypto.SecretKey, error) {
@@ -49,4 +51,14 @@ func string2SecretKeys(s string) ([]crypto.SecretKey, error) {
 	}
 
 	return secKeys, nil
+}
+
+func scanAmount(amount string) (types.Currency, bool) {
+	// use SetString manually to ensure that amount does not contain
+	// multiple values, which would confuse fmt.Scan
+	i, ok := new(big.Int).SetString(amount, 10)
+	if !ok {
+		return types.Currency{}, ok
+	}
+	return types.NewCurrency(i), true
 }

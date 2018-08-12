@@ -1,9 +1,8 @@
-package main
+package okwallet
 
 import (
 	"encoding/json"
 	"errors"
-	"gitlab.com/NebulousLabs/Sia/node/api"
 	"gitlab.com/NebulousLabs/Sia/types"
 )
 
@@ -12,7 +11,7 @@ var (
 )
 
 //return address, UnlockConditions, err
-func getAddressByPrivateKey(ssk string) (address, ucs_s string, err error) {
+func GetAddressByPrivateKey(ssk string) (address, ucs_s string, err error) {
 	address = ""
 	ucs_s = ""
 
@@ -41,12 +40,12 @@ func getAddressByPrivateKey(ssk string) (address, ucs_s string, err error) {
 
 //reference: Wallet.SendSiacoins
 //fee can get by /tpool/fee, max for general. and mul 750.
-func createRawTransaction(amount_s string, fee_s string, from_ucs_s string, to_ucs_s string, refund_ucs_s string, spendingTxs_s string) (string, error) {
-	amount, ok := api.ScanAmount(amount_s)
+func CreateRawTransaction(amount_s string, fee_s string, from_ucs_s string, to_ucs_s string, refund_ucs_s string, spendingTxs_s string) (string, error) {
+	amount, ok := scanAmount(amount_s)
 	if !ok {
 		return "", errors.New("could not read amount from '" + amount_s + "'")
 	}
-	fee, ok := api.ScanAmount(fee_s)
+	fee, ok := scanAmount(fee_s)
 	if !ok {
 		return "", errors.New("could not read fee from '" + fee_s + "'")
 	}
@@ -102,7 +101,7 @@ func createRawTransaction(amount_s string, fee_s string, from_ucs_s string, to_u
 }
 
 //reference: transactionBuilder.Sign
-func singRawTransaction(txBuilder_s string, secKeys_s string) (string, error) {
+func SignRawTransaction(txBuilder_s string, secKeys_s string) (string, error) {
 	var txBuilder okTransactionBuilder
 	err := json.Unmarshal([]byte(txBuilder_s), &txBuilder)
 	if err != nil {
@@ -126,7 +125,3 @@ func singRawTransaction(txBuilder_s string, secKeys_s string) (string, error) {
 
 	return string(txSet_b), nil
 }
-
-//send: tpool.AcceptTransactionSet
-
-func main() {}

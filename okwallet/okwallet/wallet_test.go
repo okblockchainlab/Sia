@@ -1,4 +1,4 @@
-package main
+package okwallet
 
 import (
 	"testing"
@@ -133,7 +133,7 @@ func TestGetAddressByPrivateKey(t *testing.T) {
 	exp_ucs := `{"timelock":0,"publickeys":[{"algorithm":"ed25519","key":"OI6irmkNpRFvi+GM26Vw/HLfn7PAnNhTpg43N1mdvSc="}],"signaturesrequired":1}`
 	//pk := "388ea2ae690da5116f8be18cdba570fc72df9fb3c09cd853a60e3737599dbd27"
 
-	addr, ucs, err := getAddressByPrivateKey(sk)
+	addr, ucs, err := GetAddressByPrivateKey(sk)
 
 	if err != nil {
 		t.Error("getAddressByPrivateKey return error :", err)
@@ -161,12 +161,12 @@ func TestCreateRawTransaction(t *testing.T) {
 	to_ucs := `{"timelock":0,"publickeys":[{"algorithm":"ed25519","key":"7z1Tb+iQYJrTnTuSIZhW7f7s6JCwv5+a4CoonhHm9uQ="}],"signaturesrequired":1}`
 	refund_ucs := from_ucs
 
-	txBuilder, err := createRawTransaction(amount, fee, from_ucs, to_ucs, refund_ucs, spendingTx)
+	txBuilder, err := CreateRawTransaction(amount, fee, from_ucs, to_ucs, refund_ucs, spendingTx)
 	if err != nil {
 		t.Error(err)
 	}
 
-	expTxBuilder := `{"signed":false,"parents":[{"siacoininputs":[{"parentid":"0195d81a9056466908e801c0b3f88904a473458c0d32f95992e394cf82dee22a","unlockconditions":{"timelock":0,"publickeys":[{"algorithm":"ed25519","key":"OI6irmkNpRFvi+GM26Vw/HLfn7PAnNhTpg43N1mdvSc="}],"signaturesrequired":1}},{"parentid":"8f8d8091586e406af550d511eea1643c25eface0411e7e590fed55dbec01aef5","unlockconditions":{"timelock":0,"publickeys":[{"algorithm":"ed25519","key":"OI6irmkNpRFvi+GM26Vw/HLfn7PAnNhTpg43N1mdvSc="}],"signaturesrequired":1}},{"parentid":"fd3031e9782f234fa751427cf21edb7cebcd0afcee5e951c8c0f31bb9aaf2848","unlockconditions":{"timelock":0,"publickeys":[{"algorithm":"ed25519","key":"OI6irmkNpRFvi+GM26Vw/HLfn7PAnNhTpg43N1mdvSc="}],"signaturesrequired":1}}],"siacoinoutputs":[{"value":"34400329033609498745190000000","unlockhash":"d874365aaca9f09dcad33009daa76c62b4c036fdd1c3c9d3ac2297d5a29c9787927341218ccc"},{"value":"500000000000000000000","unlockhash":"d874365aaca9f09dcad33009daa76c62b4c036fdd1c3c9d3ac2297d5a29c9787927341218ccc"}],"filecontracts":[],"filecontractrevisions":[],"storageproofs":[],"siafundinputs":[],"siafundoutputs":[],"minerfees":[],"arbitrarydata":[],"transactionsignatures":[]}],"siacoininputs":[0],"transaction":{"siacoininputs":[{"parentid":"ccb97feff1c37d87937e647279df4a7f58c5cc488d8168115612abc982819f93","unlockconditions":{"timelock":0,"publickeys":[{"algorithm":"ed25519","key":"OI6irmkNpRFvi+GM26Vw/HLfn7PAnNhTpg43N1mdvSc="}],"signaturesrequired":1}}],"siacoinoutputs":[{"value":"34398329033609498745190000000","unlockhash":"cda170c94736b1ecc035758fcf34565f2013be2c7cd4b4584c62769f3b1dd71616fde29d99a9"}],"filecontracts":[],"filecontractrevisions":[],"storageproofs":[],"siafundinputs":[],"siafundoutputs":[],"minerfees":["2000000000000000000000000"],"arbitrarydata":[],"transactionsignatures":[]}}`
+	expTxBuilder := `{"signed":false,"parents":[{"siacoininputs":[{"parentid":"0195d81a9056466908e801c0b3f88904a473458c0d32f95992e394cf82dee22a","unlockconditions":{"timelock":0,"publickeys":[{"algorithm":"ed25519","key":"OI6irmkNpRFvi+GM26Vw/HLfn7PAnNhTpg43N1mdvSc="}],"signaturesrequired":1}},{"parentid":"8f8d8091586e406af550d511eea1643c25eface0411e7e590fed55dbec01aef5","unlockconditions":{"timelock":0,"publickeys":[{"algorithm":"ed25519","key":"OI6irmkNpRFvi+GM26Vw/HLfn7PAnNhTpg43N1mdvSc="}],"signaturesrequired":1}},{"parentid":"fd3031e9782f234fa751427cf21edb7cebcd0afcee5e951c8c0f31bb9aaf2848","unlockconditions":{"timelock":0,"publickeys":[{"algorithm":"ed25519","key":"OI6irmkNpRFvi+GM26Vw/HLfn7PAnNhTpg43N1mdvSc="}],"signaturesrequired":1}}],"siacoinoutputs":[{"value":"34400329033609498745190000000","unlockhash":"d874365aaca9f09dcad33009daa76c62b4c036fdd1c3c9d3ac2297d5a29c9787927341218ccc"},{"value":"500000000000000000000","unlockhash":"d874365aaca9f09dcad33009daa76c62b4c036fdd1c3c9d3ac2297d5a29c9787927341218ccc"}],"filecontracts":null,"filecontractrevisions":null,"storageproofs":null,"siafundinputs":null,"siafundoutputs":null,"minerfees":null,"arbitrarydata":null,"transactionsignatures":null}],"siacoininputs":[0],"transaction":{"siacoininputs":[{"parentid":"ccb97feff1c37d87937e647279df4a7f58c5cc488d8168115612abc982819f93","unlockconditions":{"timelock":0,"publickeys":[{"algorithm":"ed25519","key":"OI6irmkNpRFvi+GM26Vw/HLfn7PAnNhTpg43N1mdvSc="}],"signaturesrequired":1}}],"siacoinoutputs":[{"value":"34398329033609498745190000000","unlockhash":"cda170c94736b1ecc035758fcf34565f2013be2c7cd4b4584c62769f3b1dd71616fde29d99a9"}],"filecontracts":[],"filecontractrevisions":[],"storageproofs":[],"siafundinputs":[],"siafundoutputs":[],"minerfees":["2000000000000000000000000"],"arbitrarydata":[],"transactionsignatures":[]}}`
 	if expTxBuilder != txBuilder {
 		msg := "createRawTransaction return rawtraction which is not expected.\n" +
 			"expected is: " + expTxBuilder + "\n" +
@@ -179,7 +179,7 @@ func TestSignRawTransaction(t *testing.T) {
 	txBuilder := `{"signed":false,"parents":[{"siacoininputs":[{"parentid":"0195d81a9056466908e801c0b3f88904a473458c0d32f95992e394cf82dee22a","unlockconditions":{"timelock":0,"publickeys":[{"algorithm":"ed25519","key":"OI6irmkNpRFvi+GM26Vw/HLfn7PAnNhTpg43N1mdvSc="}],"signaturesrequired":1}},{"parentid":"8f8d8091586e406af550d511eea1643c25eface0411e7e590fed55dbec01aef5","unlockconditions":{"timelock":0,"publickeys":[{"algorithm":"ed25519","key":"OI6irmkNpRFvi+GM26Vw/HLfn7PAnNhTpg43N1mdvSc="}],"signaturesrequired":1}},{"parentid":"fd3031e9782f234fa751427cf21edb7cebcd0afcee5e951c8c0f31bb9aaf2848","unlockconditions":{"timelock":0,"publickeys":[{"algorithm":"ed25519","key":"OI6irmkNpRFvi+GM26Vw/HLfn7PAnNhTpg43N1mdvSc="}],"signaturesrequired":1}}],"siacoinoutputs":[{"value":"34400329033609498745190000000","unlockhash":"d874365aaca9f09dcad33009daa76c62b4c036fdd1c3c9d3ac2297d5a29c9787927341218ccc"},{"value":"500000000000000000000","unlockhash":"d874365aaca9f09dcad33009daa76c62b4c036fdd1c3c9d3ac2297d5a29c9787927341218ccc"}],"filecontracts":[],"filecontractrevisions":[],"storageproofs":[],"siafundinputs":[],"siafundoutputs":[],"minerfees":[],"arbitrarydata":[],"transactionsignatures":[]}],"siacoininputs":[0],"transaction":{"siacoininputs":[{"parentid":"ccb97feff1c37d87937e647279df4a7f58c5cc488d8168115612abc982819f93","unlockconditions":{"timelock":0,"publickeys":[{"algorithm":"ed25519","key":"OI6irmkNpRFvi+GM26Vw/HLfn7PAnNhTpg43N1mdvSc="}],"signaturesrequired":1}}],"siacoinoutputs":[{"value":"34398329033609498745190000000","unlockhash":"cda170c94736b1ecc035758fcf34565f2013be2c7cd4b4584c62769f3b1dd71616fde29d99a9"}],"filecontracts":[],"filecontractrevisions":[],"storageproofs":[],"siafundinputs":[],"siafundoutputs":[],"minerfees":["2000000000000000000000000"],"arbitrarydata":[],"transactionsignatures":[]}}`
 	secKeys := `["97a4f67362116f9011448e881113213ec4cfe9a676605791a97b2838cf0f3486388ea2ae690da5116f8be18cdba570fc72df9fb3c09cd853a60e3737599dbd27"]`
 
-	signedTx, err := singRawTransaction(txBuilder, secKeys)
+	signedTx, err := SignRawTransaction(txBuilder, secKeys)
 	if err != nil {
 		t.Error(err, signedTx)
 	}
