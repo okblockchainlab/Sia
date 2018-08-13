@@ -257,3 +257,18 @@ func (w *Wallet) SetSettings(s modules.WalletSettings) error {
 	w.mu.Unlock()
 	return nil
 }
+
+func (w *Wallet) InitFromPubkey(pk crypto.PublicKey) error {
+	ucs := types.UnlockConditions{
+		PublicKeys:         []types.SiaPublicKey{types.Ed25519PublicKey(pk)},
+		SignaturesRequired: 1,
+	}
+
+	sk := spendableKey{
+		UnlockConditions: ucs,
+		//SecretKeys: []crypto.SecretKey{},
+	}
+
+	w.keys[sk.UnlockConditions.UnlockHash()] = sk
+	return nil
+}

@@ -420,6 +420,8 @@ type (
 		CommitTransactions(txs []types.Transaction) error
 
 		CheckOutput(tx types.Transaction) (spendable, unspendable []int, err error)
+
+		InitFromPubkey(pk crypto.PublicKey) error
 	}
 
 	// WalletSettings control the behavior of the Wallet.

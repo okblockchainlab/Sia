@@ -1767,6 +1767,31 @@ func TestWalletTransactionsGetAddr(t *testing.T) {
 	}
 }
 
+func TestInitFromPubkey(t *testing.T) {
+	st, err := blankServerTesterWithoutWalletInit(t.Name())
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	//securekey is:e86c3be476712cf502cd7757ce18043295efaa073224fc070de6d1508b7c0d0bef3d536fe890609ad39d3b92219856edfeece890b0bf9f9ae02a289e11e6f6e4
+	qs := url.Values{}
+	qs.Set("pubkey", "ef3d536fe890609ad39d3b92219856edfeece890b0bf9f9ae02a289e11e6f6e4")
+	err = st.stdPostAPI("/wallet/init/pubkey", qs)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	var wag WalletAddressGET
+	err = st.getAPI("/wallet/address", &wag)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if wag.Address.String() != "cda170c94736b1ecc035758fcf34565f2013be2c7cd4b4584c62769f3b1dd71616fde29d99a9" {
+		t.Fatal("unexpected address")
+	}
+}
+
 func prepareForTestCommitTransactions(t *testing.T) (st *serverTester, st2 *serverTester, st3 *serverTester, wallets []*serverTester, st2Uc types.UnlockConditions, err error) {
 	st = nil
 	st2 = nil

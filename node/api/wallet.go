@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"math"
@@ -308,6 +309,28 @@ func (api *API) walletInitSeedHandler(w http.ResponseWriter, req *http.Request, 
 		WriteError(w, Error{"error when calling /wallet/init/seed: " + err.Error()}, http.StatusBadRequest)
 		return
 	}
+	WriteSuccess(w)
+}
+
+func (api *API) walletInitPubKeyHandler(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+	var pk crypto.PublicKey
+	b, err := hex.DecodeString(req.FormValue("pubkey"))
+	if err != nil {
+		WriteError(w, Error{"error when decode pubkey '" + req.FormValue("pubkey") + "'. " + err.Error()}, http.StatusBadRequest)
+		return
+	}
+
+	if len(b) != len(pk) {
+		WriteError(w, Error{"invalid public key"}, http.StatusBadRequest)
+		return
+	}
+
+	copy(pk[:], b)
+
+	if err = api.wallet.InitFromPubkey(pk); err != nil {
+		WriteError(w, Error{"error when init from pubkey: " + err.Error()}, http.StatusBadRequest)
+	}
+
 	WriteSuccess(w)
 }
 

@@ -43,3 +43,6 @@ cd ./gitlab.com/NebulousLabs/Sia
   ]
 }
 ```
+
+
+没有key的话没法调用函数managedCreateDefragTransaction
