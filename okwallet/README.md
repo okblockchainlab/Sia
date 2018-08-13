@@ -10,7 +10,16 @@ cd ./gitlab.com/NebulousLabs/Sia
 ```
 
 ### 新增API
-服务进程新增加了两个http形式的API接口，以方便实现冷热钱包分离的功能。调用代码示例可以参见node/api/wallet_test.go文件中的TestWalletCommitTransactions函数。
+服务进程新增加了两个http形式的API接口，以方便实现冷热钱包分离的功能。调用代码示例可以参见node/api/wallet_test.go文件中的TestWalletCommitTransactions、TestInitFromPubkey两个测试函数。
+
+##### /wallet/init/pubkey
+将一个crypto.PublicKey存入钱包中。如果你想从某个钱包中查询地址相当的所有交易（/wallet/transactions/___:addr___），那么这个地址必须在钱包中，否则查询不到相关数据。
+输入：
+```
+//public key的字符串形式
+:pubkey
+```
+输出：标准输出。（参见[standard-responses](https://github.com/okblockchainlab/Sia/blob/master/doc/API.md#standard-responses)）
 
 ##### /wallet/checkoutput [GET]
 此命令用来检查某个transaction的output是否可以花费。在调用CreateRawTransaction时，调用者必须确保所给出的所有output是可花费的，此命令可以帮助调用者进行筛选。  
@@ -44,5 +53,5 @@ cd ./gitlab.com/NebulousLabs/Sia
 }
 ```
 
-
-没有key的话没法调用函数managedCreateDefragTransaction
+### 其它注意项
+1. 如果只在热钱包只设置了你的public key（通过/wallet/init/pubkey），那么钱包无法对交易做“碎片整理”（managedCreateDefragTransaction）。因为针对某个地址做整理时，需要生成新的交易并使用私钥对其签名，而/wallet/init/pubkey的方式只有公钥没有私钥。

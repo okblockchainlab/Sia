@@ -1768,7 +1768,7 @@ func TestWalletTransactionsGetAddr(t *testing.T) {
 }
 
 func TestInitFromPubkey(t *testing.T) {
-	st, err := blankServerTesterWithoutWalletInit(t.Name())
+	st, err := blankServerTester(t.Name())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -1781,14 +1781,22 @@ func TestInitFromPubkey(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var wag WalletAddressGET
-	err = st.getAPI("/wallet/address", &wag)
+	var wag WalletAddressesGET
+	err = st.getAPI("/wallet/addresses", &wag)
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	if wag.Address.String() != "cda170c94736b1ecc035758fcf34565f2013be2c7cd4b4584c62769f3b1dd71616fde29d99a9" {
-		t.Fatal("unexpected address")
+	findTestAddr := false
+	for _, addr := range wag.Addresses {
+		if addr.String() == "cda170c94736b1ecc035758fcf34565f2013be2c7cd4b4584c62769f3b1dd71616fde29d99a9" {
+			findTestAddr = true
+			break
+		}
+	}
+
+	if !findTestAddr {
+		t.Fatal("/wallet/init/pubkey failed")
 	}
 }
 
@@ -1954,19 +1962,29 @@ func TestWalletCommitTransactions(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	st3Uc, err := st3.wallet.NextAddress()
+	//test seckey:e86c3be476712cf502cd7757ce18043295efaa073224fc070de6d1508b7c0d0bef3d536fe890609ad39d3b92219856edfeece890b0bf9f9ae02a289e11e6f6e4
+	//test pubkey:ef3d536fe890609ad39d3b92219856edfeece890b0bf9f9ae02a289e11e6f6e4
+	//test address:cda170c94736b1ecc035758fcf34565f2013be2c7cd4b4584c62769f3b1dd71616fde29d99a9
+	var testpk crypto.PublicKey
+	copy(testpk[:], []byte{0xef, 0x3d, 0x53, 0x6f, 0xe8, 0x90, 0x60, 0x9a, 0xd3, 0x9d, 0x3b, 0x92, 0x21, 0x98, 0x56, 0xed, 0xfe, 0xec, 0xe8, 0x90, 0xb0, 0xbf, 0x9f, 0x9a, 0xe0, 0x2a, 0x28, 0x9e, 0x11, 0xe6, 0xf6, 0xe4})
+	//you can alse get toUc from okwallet.GetAddressByPrivateKey
+	toUc := types.UnlockConditions{
+		PublicKeys:         []types.SiaPublicKey{types.Ed25519PublicKey(testpk)},
+		SignaturesRequired: 1,
+	}
+	//init testpk to wallet3, so we can query transactions about testpk later
+	qs := url.Values{}
+	qs.Set("pubkey", "ef3d536fe890609ad39d3b92219856edfeece890b0bf9f9ae02a289e11e6f6e4")
+	err = st3.stdPostAPI("/wallet/init/pubkey", qs)
 	if err != nil {
 		t.Fatal(err)
 	}
-	toUc, err := json.Marshal(st3Uc)
-	if err != nil {
-		t.Fatal(err)
-	}
+	toUcByte, err := json.Marshal(toUc)
 	spendingTxByte, err := json.Marshal(spendingTx)
 	if err != nil {
 		t.Fatal(err)
 	}
-	okTxBuilderStr, err := okwallet.CreateRawTransaction(spendingAmount.String(), fee.String(), string(fromUc), string(toUc), string(fromUc), string(spendingTxByte))
+	okTxBuilderStr, err := okwallet.CreateRawTransaction(spendingAmount.String(), fee.String(), string(fromUc), string(toUcByte), string(fromUc), string(spendingTxByte))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -2002,12 +2020,19 @@ func TestWalletCommitTransactions(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	var wg WalletGET
-	err = st3.getAPI("/wallet", &wg)
+	//check if there are correct siacoins in toUc
+	wtgaQuery = fmt.Sprintf("/wallet/transactions/%s", toUc.UnlockHash())
+	err = st3.getAPI(wtgaQuery, &wtga)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !wg.ConfirmedSiacoinBalance.Equals(spendingAmount) {
-		t.Errorf("wallet st3 should have %v coins, has %v", spendingAmount, wg.ConfirmedSiacoinBalance)
+	confirmedAmount := types.NewCurrency64(0)
+	for _, cfmTx := range wtga.ConfirmedTransactions {
+		for _, sio := range cfmTx.Transaction.SiacoinOutputs {
+			confirmedAmount = confirmedAmount.Add(sio.Value)
+		}
+	}
+	if !confirmedAmount.Equals(spendingAmount) {
+		t.Errorf("destination address should have %v coins, has %v", spendingAmount, confirmedAmount)
 	}
 }
