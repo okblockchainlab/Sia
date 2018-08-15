@@ -11,6 +11,7 @@ GIT_REVISION=`git rev-parse --short HEAD`
 GIT_DIRTY=`git diff-index --quiet HEAD -- || echo "✗-"`
 
 EXT=so
+NM_FLAGS=
 TARGET_OS=`uname -s`
 case "$TARGET_OS" in
   Darwin)
@@ -19,6 +20,7 @@ case "$TARGET_OS" in
     ;;
   Linux)
     EXT=so
+    NM_FLAGS=-D
     export CGO_CFLAGS="-I${JAVA_HOME}/include -I${JAVA_HOME}/include/linux"
     ;;
   *)
@@ -39,4 +41,4 @@ go build -tags="netgo" -a -ldflags="-s -w ${ldflags}" ${pkgs}
 
 go build -o libsia.${EXT} -buildmode=c-shared -tags="netgo" -a -ldflags="-s -w ${ldflags}" ./okwallet/libsia
 [ $? -ne 0 ] && exit 1
-nm -D libsia.${EXT} |grep "[ _]Java_com_okcoin"
+nm ${NM_FLAGS} libsia.${EXT} |grep "[ _]Java_com_okcoin"
