@@ -125,20 +125,12 @@ func newObjectArray(env *C.JNIEnv, cls C.jclass, _len int, init C.jobject) C.job
 }
 
 func newStringObjectArray(env *C.JNIEnv, _len int) C.jobjectArray {
-	return C._GoJniNewObjectArray(env, int2jsize(_len), findClass(env, "java/lang/String"), C.jobject(0))
+	var init C.jobject
+	return C._GoJniNewObjectArray(env, int2jsize(_len), findClass(env, "java/lang/String"), init)
 }
 
 func setObjectArrayStringElement(env *C.JNIEnv, array C.jobjectArray, index int, s string) {
 	C._GoJniSetObjectArrayElement(env, array, int2jsize(index), C.jobject(string2jstring(env, s)))
-}
-
-func getObjectArrayStringElement(env *C.JNIEnv, array C.jobjectArray, index int) string {
-	obj := C._GoJniGetObjectArrayElement(env, array, int2jsize(index))
-	s, err := jstring2string(env, C.jstring(obj))
-	if err != nil {
-		return "errorerrorerror"
-	}
-	return s
 }
 
 func int2jsize(n int) C.jsize {

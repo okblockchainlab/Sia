@@ -39,4 +39,4 @@ go build -tags="netgo" -a -ldflags="-s -w ${ldflags}" ${pkgs}
 
 go build -o libsia.${EXT} -buildmode=c-shared -tags="netgo" -a -ldflags="-s -w ${ldflags}" ./okwallet/libsia
 [ $? -ne 0 ] && exit 1
-nm libsia.${EXT} |grep "[ _]Java_com_okcoin"
+nm -D libsia.${EXT} |grep "[ _]Java_com_okcoin"
