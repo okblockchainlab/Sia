@@ -31,8 +31,8 @@ cd ./gitlab.com/NebulousLabs/Sia
 输出示例：
 ```json
 {
-		"Spendable":[1, 2],
-		"Unspendable": [0]
+  "Spendable":[1, 2],
+  "Unspendable": [0]
 }
 ```
 
